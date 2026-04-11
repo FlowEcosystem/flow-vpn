@@ -1,48 +1,53 @@
 # Flow VPN
 
 <p align="center">
-  <strong>VPN platform monorepo</strong><br />
-  Vue web app, Telegram bot, and Docker-based infrastructure in one repository.
+  <strong>Цифровой контур VPN-платформы</strong><br />
+  web, Telegram bot и инфраструктура в одном монорепозитории.
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/monorepo-apps%20%2B%20infra-111827?style=for-the-badge" alt="Monorepo" />
-  <img src="https://img.shields.io/badge/web-Vue-42b883?style=for-the-badge&logo=vuedotjs&logoColor=white" alt="Vue" />
-  <img src="https://img.shields.io/badge/bot-aiogram%203-2F80ED?style=for-the-badge&logo=telegram&logoColor=white" alt="Aiogram" />
-  <img src="https://img.shields.io/badge/python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.12" />
-  <img src="https://img.shields.io/badge/package%20manager-PDM-C084FC?style=for-the-badge" alt="PDM" />
-  <img src="https://img.shields.io/badge/docker-compose-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker Compose" />
+  <img src="https://img.shields.io/badge/zone-monorepo-0f172a?style=for-the-badge" alt="Monorepo" />
+  <img src="https://img.shields.io/badge/web-Vue-00b894?style=for-the-badge&logo=vuedotjs&logoColor=white" alt="Vue" />
+  <img src="https://img.shields.io/badge/bot-aiogram%203-0984e3?style=for-the-badge&logo=telegram&logoColor=white" alt="Aiogram" />
+  <img src="https://img.shields.io/badge/python-3.12-1f6feb?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.12" />
+  <img src="https://img.shields.io/badge/pdm-package%20manager-6c5ce7?style=for-the-badge" alt="PDM" />
+  <img src="https://img.shields.io/badge/docker-compose-161b22?style=for-the-badge&logo=docker&logoColor=2496ED" alt="Docker Compose" />
 </p>
 
----
+> `Flow VPN` собирается как единая система: интерфейс, бот и infra-слой живут рядом, но не смешиваются.
 
-## Overview
+## Обзор
 
-`Flow VPN` is a compact monorepo with a strict separation between product code and infrastructure:
+Репозиторий построен как компактный monorepo с жёстким разделением зон ответственности:
 
-- `apps/web` contains the future user-facing frontend on Vue
-- `apps/bot` contains the Telegram bot on Python + `aiogram`
-- `infra/docker` contains environment orchestration for development and production-style deployment
+- `apps/web` — будущий пользовательский интерфейс на Vue
+- `apps/bot` — Telegram-бот на Python + `aiogram`
+- `infra/docker` — локальный и production-style orchestration через Docker Compose
 
-The repo is already prepared as a scalable base: the bot has a runnable starter implementation, Docker is split into `base / dev / prod`, and the project layout is ready for feature growth without turning into a dump of random folders.
+Сейчас это уже не пустой каркас:
 
-## Project Cards
+- бот запускается и отвечает на `/start`
+- есть базовая структура модулей под рост проекта
+- Docker-слой разбит на `base / dev / prod`
+- заложены `Postgres`, `Redis`, `Traefik` и monitoring-контур
 
-| Area | Role | Stack | Current State |
+## Контуры Системы
+
+| Контур | Назначение | Стек | Статус |
 | --- | --- | --- | --- |
-| `apps/web` | User-facing product UI | `Vue` | Scaffold zone, ready for frontend bootstrap |
-| `apps/bot` | Telegram interface for onboarding, access flows, notifications | `Python 3.12`, `aiogram 3`, `PDM` | Running starter bot with `/start` and echo flow |
-| `infra/docker` | Local and production-style orchestration | `Docker Compose`, `Traefik`, `Postgres`, `Redis` | Base, dev, prod, and monitoring profiles prepared |
+| `apps/web` | Внешний пользовательский слой | `Vue` | зона под bootstrap фронта |
+| `apps/bot` | Командный интерфейс: onboarding, доступы, уведомления, support-flows | `Python 3.12`, `aiogram 3`, `PDM` | есть рабочая стартовая база |
+| `infra/docker` | Сетевой и сервисный контур проекта | `Docker Compose`, `Traefik`, `Postgres`, `Redis` | dev/prod-оверлеи уже собраны |
 
-## Stack
+## Стек
 
 - Frontend: `Vue`
 - Bot: `Python 3.12`, `aiogram 3`, `PDM`, `pydantic-settings`
-- Data layer: `Postgres`, `Redis`, `SQLAlchemy`, `Alembic`
+- Data: `Postgres`, `Redis`, `SQLAlchemy`, `Alembic`
 - Infra: `Docker Compose`, `Traefik`
 - Observability: `Grafana`, `Prometheus`, `Loki`, `Promtail`
 
-## Repository Layout
+## Структура Репозитория
 
 ```text
 flow-vpn/
@@ -73,67 +78,71 @@ flow-vpn/
 └── README.md
 ```
 
-## Bot Snapshot
+## Bot Layer
 
-The current Telegram bot is intentionally minimal, but the base is already clean:
+Текущий бот минимальный по поведению, но собран правильно по форме:
 
 - `/start` handler
-- text echo handler
-- config loading from `.env`
-- router-based layout for future feature modules
-- dedicated folders for `services`, `repositories`, `middlewares`, `states`, and `utils`
+- echo для текстовых сообщений
+- загрузка конфигурации из `.env`
+- router-based раскладка под будущие feature-модули
+- выделенные слои `services`, `repositories`, `middlewares`, `states`, `utils`
 
-Entrypoint:
+Точка входа:
 
 ```bash
 apps/bot/src/main.py
 ```
 
-## Compose Model
+## Docker Topology
 
-The Docker layer uses a `base + overrides` approach:
+Docker-конфигурация построена по схеме `base + overrides`:
 
-- `infra/docker/compose.yml` defines shared services and common wiring
-- `infra/docker/compose.dev.yml` adds bind mounts, open ports, and local developer behavior
-- `infra/docker/compose.prod.yml` adds reverse proxy, production-style routing, and optional monitoring services
+- `infra/docker/compose.yml` — общий базовый слой
+- `infra/docker/compose.dev.yml` — локальная разработка, bind mounts, открытые порты
+- `infra/docker/compose.prod.yml` — reverse proxy, production-style wiring, monitoring profile
 
-This keeps shared logic in one place and keeps environment-specific behavior explicit.
+Это даёт предсказуемую модель:
+
+- общее описывается один раз
+- dev не засоряет prod
+- prod не тащит в себя developer-специфику
 
 ## Developer Workflow
 
-### 1. Bot-only local run
+### 1. Локальный запуск бота
 
 ```bash
 cd apps/bot
 cp .env.example .env
 ```
 
-Fill in `BOT_TOKEN`, then run:
+Заполни `BOT_TOKEN`, затем запусти:
 
 ```bash
 pdm run start
 ```
 
-### 2. Full local stack in Docker
+### 2. Локальный запуск всего контура
 
 ```bash
 docker compose -f infra/docker/compose.yml -f infra/docker/compose.dev.yml up --build
 ```
 
-This starts:
+Поднимутся:
 
 - `web`
 - `bot`
 - `postgres`
 - `redis`
 
-### 3. Production-style stack
+### 3. Production-style запуск
 
 ```bash
 docker compose -f infra/docker/compose.yml -f infra/docker/compose.prod.yml up --build -d
 ```
 
-With monitoring:
+С monitoring-профилем:
 
 ```bash
 docker compose -f infra/docker/compose.yml -f infra/docker/compose.prod.yml --profile monitoring up --build -d
@@ -141,19 +150,19 @@ docker compose -f infra/docker/compose.yml -f infra/docker/compose.prod.yml --pr
 
 ## Roadmap
 
-- [x] Define monorepo structure for apps and infra
-- [x] Set up Docker Compose base, dev, and prod layers
-- [x] Prepare Python bot project on `PDM`
-- [x] Add starter `aiogram` bot with `/start` and echo flow
-- [ ] Bootstrap the Vue application in `apps/web`
-- [ ] Add real bot domains: auth, subscriptions, payments, support
-- [ ] Introduce database models and persistence layer
-- [ ] Add middleware, FSM flows, and keyboards
-- [ ] Harden production config, secrets, and TLS
-- [ ] Add CI checks for linting, tests, and compose validation
+- [x] Собрать monorepo-структуру для `apps` и `infra`
+- [x] Разделить Compose на `base / dev / prod`
+- [x] Поднять Python bot-проект на `PDM`
+- [x] Добавить стартового `aiogram`-бота
+- [ ] Забутстрапить Vue-приложение в `apps/web`
+- [ ] Вынести реальные bot-домены: auth, subscriptions, payments, support
+- [ ] Добавить persistence layer и модели
+- [ ] Подключить middleware, FSM-сцены и keyboards
+- [ ] Усилить production-конфигурацию: secrets, TLS, hardening
+- [ ] Добавить CI на lint, tests и compose validation
 
-## Notes
+## Заметки
 
-- Only the root Git repository is present; nested `.git` repositories are not used.
-- Root `.gitignore` already covers Python caches, virtualenvs, Node artifacts, and local environment files.
-- Current production compose is a strong scaffold, not a fully hardened deployment yet.
+- В репозитории используется только корневой Git, вложенные `.git` не применяются.
+- Корневой `.gitignore` уже закрывает Python-кэш, virtualenv, Node-артефакты и локальные `.env`.
+- Текущий `prod`-compose — это сильная заготовка под деплой, но не финальный hardened production.
