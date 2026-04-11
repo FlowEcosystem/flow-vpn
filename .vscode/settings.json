@@ -1,0 +1,13 @@
+{
+    "files.exclude": {
+      "**/__pycache__": true,
+      "**/.pdm-python": true,
+      "**/pdm.lock": true,
+      "**/.venv": true,
+    },
+    "search.exclude": {
+      "**/__pycache__": true,
+      "**/.pdm-python": true,
+      "**/pdm.lock": true,
+    }
+  }

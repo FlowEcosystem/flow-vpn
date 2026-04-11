@@ -1,0 +1,75 @@
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/settings.json
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files
+.env
+.env.local
+.env.*.local
+apps/*/.env
+infra/docker/.env
+!.env.example
+!apps/*/.env.example
+!infra/docker/.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.python-version
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.pyre/
+.hypothesis/
+
+# PDM / virtualenvs
+.pdm-python
+.venv/
+venv/
+env/
+ENV/
+
+# Bot build artifacts
+apps/bot/build/
+apps/bot/dist/
+apps/bot/*.egg-info/
+
+# Node / Vue
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/
+.parcel-cache/
+.vite/
+.nuxt/
+.output/
+coverage/
+dist/
+apps/web/node_modules/
+apps/web/dist/
+apps/web/.nuxt/
+apps/web/.output/
+apps/web/.vite/
+
+# TypeScript
+*.tsbuildinfo
+
+# Docker / local infra
+tmp/
+.tmp/

@@ -1,0 +1,73 @@
+name: flow-vpn
+
+services:
+  web:
+    build:
+      context: ../..
+      dockerfile: infra/docker/web/Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      WEB_PORT: ${WEB_PORT:-3000}
+    networks:
+      - flow-vpn
+
+  bot:
+    build:
+      context: ../..
+      dockerfile: infra/docker/bot/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      BOT_TOKEN: ${BOT_TOKEN:-changeme}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/flow_vpn}
+      REDIS_URL: ${REDIS_URL:-redis://:redispass@redis:6379/0}
+    networks:
+      - flow-vpn
+
+  postgres:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-flow_vpn}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-flow_vpn}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - flow-vpn
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:-redispass}"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD:-redispass} ping | grep PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - flow-vpn
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  flow-vpn:
+    name: flow-vpn-network
+    driver: bridge

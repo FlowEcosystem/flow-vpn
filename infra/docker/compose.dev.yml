@@ -1,0 +1,42 @@
+services:
+  web:
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    volumes:
+      - ../../apps/web:/app
+    command:
+      - sh
+      - -c
+      - >
+        if [ -f package.json ]; then
+          npm install &&
+          npm run dev -- --host 0.0.0.0 --port 3000;
+        else
+          echo "apps/web is empty; container kept alive for scaffold usage";
+          sleep infinity;
+        fi
+
+  bot:
+    volumes:
+      - ../../apps/bot:/app
+    command:
+      - sh
+      - -c
+      - >
+        if [ -f pyproject.toml ]; then
+          pdm install;
+        fi;
+        if [ -f src/main.py ]; then
+          pdm run python -m src.main;
+        else
+          echo "apps/bot has no src/main.py yet; container kept alive for scaffold usage";
+          sleep infinity;
+        fi
+
+  postgres:
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+
+  redis:
+    ports:
+      - "${REDIS_PORT:-6379}:6379"

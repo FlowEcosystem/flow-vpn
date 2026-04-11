@@ -1,0 +1,77 @@
+services:
+  web:
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=flow-vpn-network
+      - traefik.http.routers.flow-web.rule=Host(`${WEB_DOMAIN:-localhost}`)
+      - traefik.http.routers.flow-web.entrypoints=web
+      - traefik.http.services.flow-web.loadbalancer.server.port=3000
+      - traefik.http.routers.flow-web.middlewares=secure-headers@file
+
+  traefik:
+    image: traefik:v3.1
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic.yml:/etc/traefik/dynamic/dynamic.yml:ro
+    networks:
+      - flow-vpn
+
+  grafana:
+    image: grafana/grafana-enterprise:11.1.0
+    restart: unless-stopped
+    profiles: ["monitoring"]
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - flow-vpn
+
+  prometheus:
+    image: prom/prometheus:v2.53.1
+    restart: unless-stopped
+    profiles: ["monitoring"]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    volumes:
+      - prometheus_data:/prometheus
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    networks:
+      - flow-vpn
+
+  loki:
+    image: grafana/loki:3.1.1
+    restart: unless-stopped
+    profiles: ["monitoring"]
+    command: -config.file=/etc/loki/config.yaml
+    volumes:
+      - loki_data:/loki
+      - ./monitoring/loki-config.yaml:/etc/loki/config.yaml:ro
+    networks:
+      - flow-vpn
+
+  promtail:
+    image: grafana/promtail:3.1.1
+    restart: unless-stopped
+    profiles: ["monitoring"]
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ./monitoring/promtail.yml:/etc/promtail/config.yml:ro
+    networks:
+      - flow-vpn
+
+volumes:
+  grafana_data:
+  prometheus_data:
+  loki_data:
