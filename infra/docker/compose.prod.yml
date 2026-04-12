@@ -16,8 +16,8 @@ services:
       - "443:443"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ./traefik/dynamic.yml:/etc/traefik/dynamic/dynamic.yml:ro
+      - ../traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ../traefik/dynamic.yml:/etc/traefik/dynamic/dynamic.yml:ro
     networks:
       - flow-vpn
 
@@ -44,7 +44,7 @@ services:
       - --storage.tsdb.path=/prometheus
     volumes:
       - prometheus_data:/prometheus
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
     networks:
       - flow-vpn
 
@@ -55,7 +55,7 @@ services:
     command: -config.file=/etc/loki/config.yaml
     volumes:
       - loki_data:/loki
-      - ./monitoring/loki-config.yaml:/etc/loki/config.yaml:ro
+      - ../monitoring/loki-config.yaml:/etc/loki/config.yaml:ro
     networks:
       - flow-vpn
 
@@ -67,7 +67,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - ./monitoring/promtail.yml:/etc/promtail/config.yml:ro
+      - ../monitoring/promtail.yml:/etc/promtail/config.yml:ro
     networks:
       - flow-vpn
 

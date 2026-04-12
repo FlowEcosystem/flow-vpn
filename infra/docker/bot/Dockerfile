@@ -17,4 +17,4 @@ RUN if [ -f pyproject.toml ]; then \
       pdm install --prod --no-self; \
     fi
 
-CMD ["sh", "-c", "if [ -f src/main.py ]; then pdm run python -m src.main; else echo 'apps/bot has no src/main.py yet'; sleep infinity; fi"]
+CMD ["sh", "-c", "if [ -f src/main.py ]; then pdm run alembic upgrade head && pdm run python -m src.main; else echo 'apps/bot has no src/main.py yet'; sleep infinity; fi"]

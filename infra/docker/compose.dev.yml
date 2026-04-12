@@ -27,6 +27,7 @@ services:
           pdm install;
         fi;
         if [ -f src/main.py ]; then
+          pdm run alembic upgrade head &&
           pdm run python -m src.main;
         else
           echo "apps/bot has no src/main.py yet; container kept alive for scaffold usage";

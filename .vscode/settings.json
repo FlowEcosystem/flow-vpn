@@ -4,10 +4,15 @@
       "**/.pdm-python": true,
       "**/pdm.lock": true,
       "**/.venv": true,
+      "**/.pytest_cache": true,
+      "**/.ruff_cache": true,
     },
     "search.exclude": {
       "**/__pycache__": true,
       "**/.pdm-python": true,
       "**/pdm.lock": true,
-    }
+    },
+    "python.analysis.extraPaths": [
+      "./apps/bot"
+    ]
   }

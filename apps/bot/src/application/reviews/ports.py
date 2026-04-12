@@ -1,0 +1,23 @@
+from typing import Protocol
+
+from src.application.reviews.dto import PublicReview, ReviewsOverview
+
+
+class ReviewsRepository(Protocol):
+    async def list_recent(self, limit: int) -> tuple[PublicReview, ...]: ...
+
+    async def create(self, *, user_id: object, rating: int, text: str) -> None: ...
+
+    async def get_overview(self, limit: int) -> ReviewsOverview: ...
+
+
+class ReviewsUnitOfWork(Protocol):
+    reviews: ReviewsRepository
+
+    async def __aenter__(self) -> "ReviewsUnitOfWork": ...
+
+    async def __aexit__(self, exc_type: object, exc: BaseException | None, tb: object) -> None: ...
+
+    async def commit(self) -> None: ...
+
+    async def rollback(self) -> None: ...

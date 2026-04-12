@@ -27,9 +27,10 @@
 Сейчас это уже не пустой каркас:
 
 - бот запускается и отвечает на `/start`
-- есть базовая структура модулей под рост проекта
+- пользователь регистрируется в PostgreSQL при первом входе
+- bot-код разложен по явным слоям `application / infrastructure / presentation`
+- схема БД управляется через `Alembic`-миграции
 - Docker-слой разбит на `base / dev / prod`
-- заложены `Postgres`, `Redis`, `Traefik` и monitoring-контур
 
 ## Контуры Системы
 
@@ -42,7 +43,7 @@
 ## Стек
 
 - Frontend: `Vue`
-- Bot: `Python 3.12`, `aiogram 3`, `PDM`, `pydantic-settings`
+- Bot: `Python 3.12`, `aiogram 3`, `PDM`, `dishka`, `pydantic-settings`, `Alembic`
 - Data: `Postgres`, `Redis`, `SQLAlchemy`, `Alembic`
 - Infra: `Docker Compose`, `Traefik`
 - Observability: `Grafana`, `Prometheus`, `Loki`, `Promtail`
@@ -56,37 +57,33 @@ flow-vpn/
 │   │   ├── pyproject.toml
 │   │   ├── pdm.lock
 │   │   ├── src/
-│   │   │   ├── core/
-│   │   │   ├── handlers/
-│   │   │   ├── keyboards/
-│   │   │   ├── middlewares/
-│   │   │   ├── repositories/
-│   │   │   ├── services/
-│   │   │   ├── states/
-│   │   │   └── utils/
-│   │   └── tests/
+│   │   │   ├── app/
+│   │   │   ├── application/
+│   │   │   ├── infrastructure/
+│   │   │   ├── presentation/
+│   │   │   └── main.py
 │   └── web/
 ├── infra/
-│   └── docker/
-│       ├── compose.yml
-│       ├── compose.dev.yml
-│       ├── compose.prod.yml
-│       ├── bot/
-│       ├── web/
-│       ├── traefik/
-│       └── monitoring/
+│   ├── docker/
+│   │   ├── compose.yml
+│   │   ├── compose.dev.yml
+│   │   ├── compose.prod.yml
+│   │   ├── bot/
+│   │   └── web/
+│   ├── monitoring/
+│   └── traefik/
 └── README.md
 ```
 
 ## Bot Layer
 
-Текущий бот минимальный по поведению, но собран правильно по форме:
+Текущий бот минимальный по поведению, но уже собран в предсказуемую архитектуру:
 
-- `/start` handler
-- echo для текстовых сообщений
-- загрузка конфигурации из `.env`
-- router-based раскладка под будущие feature-модули
-- выделенные слои `services`, `repositories`, `middlewares`, `states`, `utils`
+- `presentation` содержит только Telegram transport-слой
+- `application` хранит use cases и контракты
+- `infrastructure` инкапсулирует SQLAlchemy, репозитории и `UnitOfWork`
+- `app` отвечает за конфиг и DI/bootstrap
+- `/start` регистрирует пользователя при первом входе
 
 Точка входа:
 
@@ -117,9 +114,10 @@ cd apps/bot
 cp .env.example .env
 ```
 
-Заполни `BOT_TOKEN`, затем запусти:
+Заполни `BOT_TOKEN`, затем примени миграции и запусти:
 
 ```bash
+pdm run db-upgrade
 pdm run start
 ```
 
@@ -154,10 +152,9 @@ docker compose -f infra/docker/compose.yml -f infra/docker/compose.prod.yml --pr
 - [x] Разделить Compose на `base / dev / prod`
 - [x] Поднять Python bot-проект на `PDM`
 - [x] Добавить стартового `aiogram`-бота
+- [x] Добавить persistence layer и модели
 - [ ] Забутстрапить Vue-приложение в `apps/web`
 - [ ] Вынести реальные bot-домены: auth, subscriptions, payments, support
-- [ ] Добавить persistence layer и модели
-- [ ] Подключить middleware, FSM-сцены и keyboards
 - [ ] Усилить production-конфигурацию: secrets, TLS, hardening
 - [ ] Добавить CI на lint, tests и compose validation
 

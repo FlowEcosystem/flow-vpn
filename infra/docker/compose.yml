@@ -25,7 +25,8 @@ services:
     environment:
       APP_ENV: ${APP_ENV:-development}
       BOT_TOKEN: ${BOT_TOKEN:-changeme}
-      DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@postgres:5432/flow_vpn}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@postgres:5432/flow_vpn}
+      DATABASE_ECHO: ${DATABASE_ECHO:-false}
       REDIS_URL: ${REDIS_URL:-redis://:redispass@redis:6379/0}
     networks:
       - flow-vpn
