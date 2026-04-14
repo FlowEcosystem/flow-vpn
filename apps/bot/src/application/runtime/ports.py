@@ -8,6 +8,10 @@ class RuntimeSettingsRepository(Protocol):
 
     async def set_access_mode(self, access_mode: AccessMode) -> AccessMode: ...
 
+    async def get_max_vpn_accesses_per_user(self) -> int: ...
+
+    async def set_max_vpn_accesses_per_user(self, limit: int) -> int: ...
+
 
 class RuntimeSettingsUnitOfWork(Protocol):
     settings: RuntimeSettingsRepository

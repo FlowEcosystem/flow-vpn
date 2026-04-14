@@ -1,13 +1,23 @@
 from typing import Protocol
 from uuid import UUID
 
-from src.application.promos.dto import PromoCodeInfo
+from src.application.promos.dto import AdminPromoDetail, NewPromoCodeData, PromoCodeInfo
 
 
 class PromoCodesRepository(Protocol):
     async def get_active_by_code(self, code: str) -> PromoCodeInfo | None: ...
 
     async def list_recent_active(self, limit: int) -> tuple[PromoCodeInfo, ...]: ...
+
+    async def list_all(self, limit: int = 30) -> tuple[AdminPromoDetail, ...]: ...
+
+    async def get_by_id(self, promo_id: UUID) -> AdminPromoDetail | None: ...
+
+    async def create(self, data: NewPromoCodeData) -> AdminPromoDetail: ...
+
+    async def set_active(self, promo_id: UUID, *, is_active: bool) -> None: ...
+
+    async def delete(self, promo_id: UUID) -> None: ...
 
 
 class PromoRedemptionsRepository(Protocol):

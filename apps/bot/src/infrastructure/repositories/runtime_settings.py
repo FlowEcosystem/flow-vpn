@@ -19,6 +19,16 @@ class SqlAlchemyRuntimeSettingsRepository:
         await self._session.flush()
         return settings.access_mode
 
+    async def get_max_vpn_accesses_per_user(self) -> int:
+        settings = await self._get_or_create_settings()
+        return settings.max_vpn_accesses_per_user
+
+    async def set_max_vpn_accesses_per_user(self, limit: int) -> int:
+        settings = await self._get_or_create_settings()
+        settings.max_vpn_accesses_per_user = max(0, limit)
+        await self._session.flush()
+        return settings.max_vpn_accesses_per_user
+
     async def _get_or_create_settings(self) -> AppSettings:
         stmt = select(AppSettings).where(AppSettings.id == 1)
         result = await self._session.execute(stmt)
@@ -26,7 +36,11 @@ class SqlAlchemyRuntimeSettingsRepository:
         if settings is not None:
             return settings
 
-        settings = AppSettings(id=1, access_mode=AccessMode.FREE_ACCESS)
+        settings = AppSettings(
+            id=1,
+            access_mode=AccessMode.FREE_ACCESS,
+            max_vpn_accesses_per_user=0,
+        )
         self._session.add(settings)
         await self._session.flush()
         return settings

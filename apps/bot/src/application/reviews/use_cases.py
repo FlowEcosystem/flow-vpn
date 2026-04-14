@@ -1,18 +1,13 @@
+import structlog
+
 from src.application.reviews.dto import ReviewsOverview
 from src.application.reviews.ports import ReviewsUnitOfWork
-from src.application.users import UsersUnitOfWork
+from src.application.users.ports import UsersUnitOfWork
+
+logger = structlog.get_logger(__name__)
 
 
-class GetReviewsOverviewUseCase:
-    def __init__(self, reviews_uow: ReviewsUnitOfWork) -> None:
-        self._reviews_uow = reviews_uow
-
-    async def execute(self, *, limit: int = 5) -> ReviewsOverview:
-        async with self._reviews_uow:
-            return await self._reviews_uow.reviews.get_overview(limit)
-
-
-class CreateReviewUseCase:
+class ReviewsService:
     def __init__(
         self,
         users_uow: UsersUnitOfWork,
@@ -21,12 +16,32 @@ class CreateReviewUseCase:
         self._users_uow = users_uow
         self._reviews_uow = reviews_uow
 
-    async def execute(self, telegram_id: int, *, rating: int, text: str) -> bool:
-        normalized_text = text.strip()
+    async def get_overview(
+        self,
+        telegram_id: int | None = None,
+        *,
+        limit: int = 5,
+    ) -> ReviewsOverview:
+        viewer_user_id = None
+        if telegram_id is not None:
+            async with self._users_uow:
+                user = await self._users_uow.users.get_by_telegram_id(telegram_id)
+            if user is not None:
+                viewer_user_id = user.id
+
+        async with self._reviews_uow:
+            return await self._reviews_uow.reviews.get_overview(
+                limit,
+                viewer_user_id=viewer_user_id,
+            )
+
+    async def create(self, telegram_id: int, *, rating: int, text: str) -> bool:
         if rating < 1 or rating > 5:
             raise ValueError("Оценка должна быть от 1 до 5.")
-        if len(normalized_text) < 8:
-            raise ValueError("Отзыв получился слишком коротким.")
+
+        normalized = text.strip()
+        if normalized and len(normalized) < 3:
+            raise ValueError("Слишком короткий текст — напишите хотя бы 3 символа.")
 
         async with self._users_uow:
             user = await self._users_uow.users.get_by_telegram_id(telegram_id)
@@ -35,10 +50,12 @@ class CreateReviewUseCase:
             return False
 
         async with self._reviews_uow:
-            await self._reviews_uow.reviews.create(
+            await self._reviews_uow.reviews.upsert(
                 user_id=user.id,
                 rating=rating,
-                text=normalized_text,
+                text=normalized,
             )
             await self._reviews_uow.commit()
-            return True
+
+        logger.info("review_submitted", telegram_id=telegram_id, rating=rating)
+        return True

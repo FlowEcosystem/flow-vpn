@@ -20,6 +20,11 @@ class AppSettings(Base):
         nullable=False,
         default=AccessMode.FREE_ACCESS,
     )
+    max_vpn_accesses_per_user: Mapped[int] = mapped_column(
+        SmallInteger,
+        nullable=False,
+        default=0,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

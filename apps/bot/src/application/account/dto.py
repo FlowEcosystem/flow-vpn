@@ -15,4 +15,4 @@ class TelegramAccountOverview:
     is_premium: bool | None
     created_at: datetime
     access_mode: AccessMode
-    vpn_access: VpnAccess | None
+    vpn_accesses: tuple[VpnAccess, ...]

@@ -15,7 +15,6 @@ class VpnAccess(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
-        unique=True,
     )
     provider: Mapped[str] = mapped_column(String(32), nullable=False, default="marzban")
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")

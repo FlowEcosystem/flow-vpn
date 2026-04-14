@@ -14,12 +14,11 @@ from src.application.vpn.ports import (
     VpnAccessUnitOfWork,
     VpnProvisioningGateway,
 )
-from src.application.vpn.use_cases import AcquireVpnAccessUseCase
+from src.application.vpn.use_cases import VpnService
 
 __all__ = [
     "AcquireVpnAccessOutcome",
     "AcquireVpnAccessResult",
-    "AcquireVpnAccessUseCase",
     "NewVpnAccessData",
     "NewVpnAccessEventData",
     "ProvisionedVpnAccess",
@@ -30,4 +29,5 @@ __all__ = [
     "VpnAccessRepository",
     "VpnAccessUnitOfWork",
     "VpnProvisioningGateway",
+    "VpnService",
 ]

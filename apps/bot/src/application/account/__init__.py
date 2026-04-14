@@ -1,7 +1,7 @@
 from src.application.account.dto import TelegramAccountOverview
-from src.application.account.use_cases import GetTelegramAccountUseCase
+from src.application.account.use_cases import AccountService
 
 __all__ = [
-    "GetTelegramAccountUseCase",
+    "AccountService",
     "TelegramAccountOverview",
 ]

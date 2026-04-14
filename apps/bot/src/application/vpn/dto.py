@@ -74,6 +74,7 @@ class NewVpnAccessEventData:
 class AcquireVpnAccessOutcome(StrEnum):
     ACTIVE = "active"
     BILLING_REQUIRED = "billing_required"
+    LIMIT_REACHED = "limit_reached"
     USER_NOT_FOUND = "user_not_found"
     PROVIDER_NOT_CONFIGURED = "provider_not_configured"
     PROVIDER_ERROR = "provider_error"

@@ -16,6 +16,8 @@ class PromoCode(Base):
     title: Mapped[str] = mapped_column(String(255))
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     bonus_days: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    is_infinite: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    apply_to_all: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     max_redemptions: Mapped[int | None] = mapped_column(Integer, nullable=True)
     current_redemptions: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

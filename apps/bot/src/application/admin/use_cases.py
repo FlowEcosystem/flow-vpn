@@ -1,5 +1,13 @@
-from datetime import UTC, datetime, time
+from uuid import UUID
 
+from src.application.admin.accesses import (
+    delete_admin_access,
+    disable_admin_access,
+    enable_admin_access,
+    issue_admin_access,
+    reissue_admin_access,
+)
+from src.application.admin.dashboard import get_admin_dashboard
 from src.application.admin.dto import (
     AdminDashboard,
     AdminUserDetail,
@@ -7,317 +15,142 @@ from src.application.admin.dto import (
     AdminUsersFilter,
     AdminUsersOverview,
 )
+from src.application.admin.users import (
+    get_admin_user_detail,
+    get_admin_users_overview,
+    search_admin_users,
+)
 from src.application.runtime.ports import RuntimeSettingsUnitOfWork
 from src.application.users.ports import UsersUnitOfWork
-from src.application.vpn import (
-    NewVpnAccessData,
-    NewVpnAccessEventData,
-    UpdateVpnAccessData,
-)
 from src.application.vpn.ports import VpnAccessUnitOfWork, VpnProvisioningGateway
 
 
-class GetAdminDashboardUseCase:
+class AdminService:
     def __init__(
         self,
         users_uow: UsersUnitOfWork,
         runtime_settings_uow: RuntimeSettingsUnitOfWork,
+        vpn_access_uow: VpnAccessUnitOfWork,
+        provisioning_gateway: VpnProvisioningGateway,
     ) -> None:
         self._users_uow = users_uow
         self._runtime_settings_uow = runtime_settings_uow
+        self._vpn_access_uow = vpn_access_uow
+        self._provisioning_gateway = provisioning_gateway
 
-    async def execute(self) -> AdminDashboard:
-        today_started_at = datetime.combine(
-            datetime.now(UTC).date(),
-            time.min,
-            tzinfo=UTC,
+    async def get_dashboard(self) -> AdminDashboard:
+        return await get_admin_dashboard(
+            users_uow=self._users_uow,
+            runtime_settings_uow=self._runtime_settings_uow,
         )
 
-        async with self._users_uow:
-            total_users = await self._users_uow.users.count_all()
-            new_users_today = await self._users_uow.users.count_created_since(today_started_at)
-            premium_users = await self._users_uow.users.count_premium()
-
-        async with self._runtime_settings_uow:
-            access_mode = await self._runtime_settings_uow.settings.get_access_mode()
-
-        return AdminDashboard(
-            access_mode=access_mode,
-            total_users=total_users,
-            new_users_today=new_users_today,
-            premium_users=premium_users,
-        )
-
-
-class GetAdminUsersOverviewUseCase:
-    def __init__(self, users_uow: UsersUnitOfWork) -> None:
-        self._users_uow = users_uow
-
-    async def execute(
+    async def get_users_overview(
         self,
         *,
         page: int = 0,
         page_size: int = 6,
         current_filter: AdminUsersFilter = AdminUsersFilter.ALL,
     ) -> AdminUsersOverview:
-        normalized_page = max(page, 0)
-        has_vpn_access = {
-            AdminUsersFilter.ALL: None,
-            AdminUsersFilter.WITH_ACCESS: True,
-            AdminUsersFilter.WITHOUT_ACCESS: False,
-        }[current_filter]
-        offset = normalized_page * page_size
-
-        async with self._users_uow:
-            total_users = await self._users_uow.users.count_all()
-            users_with_access = await self._users_uow.users.count_with_vpn_access()
-            total_filtered = await self._users_uow.users.count_filtered(
-                has_vpn_access=has_vpn_access
-            )
-            recent_users = await self._users_uow.users.list_page(
-                limit=page_size,
-                offset=offset,
-                has_vpn_access=has_vpn_access,
-            )
-
-        return AdminUsersOverview(
-            total_users=total_users,
-            users_with_access=users_with_access,
-            total_filtered=total_filtered,
-            current_page=normalized_page,
-            has_next_page=offset + len(recent_users) < total_filtered,
+        return await get_admin_users_overview(
+            users_uow=self._users_uow,
+            page=page,
+            page_size=page_size,
             current_filter=current_filter,
-            recent_users=recent_users,
         )
 
-
-class SearchAdminUsersUseCase:
-    def __init__(self, users_uow: UsersUnitOfWork) -> None:
-        self._users_uow = users_uow
-
-    async def execute(self, query: str, *, limit: int = 8) -> AdminUserSearchResult:
-        async with self._users_uow:
-            users = await self._users_uow.users.search(query, limit)
-
-        return AdminUserSearchResult(
-            query=query.strip(),
-            users=users,
+    async def search_users(self, query: str, *, limit: int = 8) -> AdminUserSearchResult:
+        return await search_admin_users(
+            users_uow=self._users_uow,
+            query=query,
+            limit=limit,
         )
 
+    async def get_user_detail(
+        self, telegram_id: int, *, history_limit: int = 10
+    ) -> AdminUserDetail | None:
+        return await get_admin_user_detail(
+            users_uow=self._users_uow,
+            vpn_access_uow=self._vpn_access_uow,
+            telegram_id=telegram_id,
+            history_limit=history_limit,
+        )
 
-class GetAdminUserDetailUseCase:
-    def __init__(
+    async def issue_access(
         self,
-        users_uow: UsersUnitOfWork,
-        vpn_access_uow: VpnAccessUnitOfWork,
-    ) -> None:
-        self._users_uow = users_uow
-        self._vpn_access_uow = vpn_access_uow
-
-    async def execute(self, telegram_id: int, *, history_limit: int = 10) -> AdminUserDetail | None:
-        async with self._users_uow:
-            user = await self._users_uow.users.get_by_telegram_id(telegram_id)
-
-        if user is None:
-            return None
-
-        async with self._vpn_access_uow:
-            vpn_access = await self._vpn_access_uow.vpn_accesses.get_by_user_id(user.id)
-            history = await self._vpn_access_uow.vpn_access_events.list_by_user_id(
-                user.id,
-                history_limit,
-            )
-
-        return AdminUserDetail(
-            user=user,
-            vpn_access=vpn_access,
-            history=history,
+        telegram_id: int,
+        *,
+        actor_telegram_id: int,
+        extra_event_details: dict[str, str] | None = None,
+    ) -> AdminUserDetail | None:
+        return await issue_admin_access(
+            users_uow=self._users_uow,
+            vpn_access_uow=self._vpn_access_uow,
+            provisioning_gateway=self._provisioning_gateway,
+            telegram_id=telegram_id,
+            actor_telegram_id=actor_telegram_id,
+            extra_event_details=extra_event_details,
         )
 
-
-class IssueAdminVpnAccessUseCase:
-    def __init__(
+    async def enable_access(
         self,
-        users_uow: UsersUnitOfWork,
-        vpn_access_uow: VpnAccessUnitOfWork,
-        provisioning_gateway: VpnProvisioningGateway,
-    ) -> None:
-        self._users_uow = users_uow
-        self._vpn_access_uow = vpn_access_uow
-        self._provisioning_gateway = provisioning_gateway
-
-    async def execute(self, telegram_id: int, *, actor_telegram_id: int) -> AdminUserDetail | None:
-        async with self._users_uow:
-            user = await self._users_uow.users.get_by_telegram_id(telegram_id)
-
-        if user is None:
-            return None
-
-        async with self._vpn_access_uow:
-            access = await self._vpn_access_uow.vpn_accesses.get_by_user_id(user.id)
-
-        if access is None:
-            provisioned = await self._provisioning_gateway.provision_vless_access(user)
-            async with self._vpn_access_uow:
-                access = await self._vpn_access_uow.vpn_accesses.create(
-                    NewVpnAccessData(
-                        user_id=user.id,
-                        provider=provisioned.provider,
-                        status=provisioned.status,
-                        external_username=provisioned.external_username,
-                        subscription_url=provisioned.subscription_url,
-                        vless_links=provisioned.vless_links,
-                        issued_at=provisioned.issued_at,
-                        expires_at=provisioned.expires_at,
-                    )
-                )
-                await self._vpn_access_uow.vpn_access_events.create(
-                    NewVpnAccessEventData(
-                        user_id=user.id,
-                        access_id=access.id,
-                        event_type="issued_by_admin",
-                        actor_telegram_id=actor_telegram_id,
-                        details={},
-                    )
-                )
-                history = await self._vpn_access_uow.vpn_access_events.list_by_user_id(user.id, 10)
-                await self._vpn_access_uow.commit()
-            return AdminUserDetail(user=user, vpn_access=access, history=history)
-
-        if access.status != "active":
-            provisioned = await self._provisioning_gateway.enable_vless_access(
-                access.external_username
-            )
-            async with self._vpn_access_uow:
-                access = await self._vpn_access_uow.vpn_accesses.update(
-                    access.id,
-                    UpdateVpnAccessData(
-                        status=provisioned.status,
-                        subscription_url=provisioned.subscription_url,
-                        vless_links=provisioned.vless_links,
-                        issued_at=provisioned.issued_at,
-                        expires_at=provisioned.expires_at,
-                    ),
-                )
-                await self._vpn_access_uow.vpn_access_events.create(
-                    NewVpnAccessEventData(
-                        user_id=user.id,
-                        access_id=access.id,
-                        event_type="enabled_by_admin",
-                        actor_telegram_id=actor_telegram_id,
-                        details={},
-                    )
-                )
-                history = await self._vpn_access_uow.vpn_access_events.list_by_user_id(user.id, 10)
-                await self._vpn_access_uow.commit()
-            return AdminUserDetail(user=user, vpn_access=access, history=history)
-
-        async with self._vpn_access_uow:
-            history = await self._vpn_access_uow.vpn_access_events.list_by_user_id(user.id, 10)
-        return AdminUserDetail(user=user, vpn_access=access, history=history)
-
-
-class DisableAdminVpnAccessUseCase:
-    def __init__(
-        self,
-        users_uow: UsersUnitOfWork,
-        vpn_access_uow: VpnAccessUnitOfWork,
-        provisioning_gateway: VpnProvisioningGateway,
-    ) -> None:
-        self._users_uow = users_uow
-        self._vpn_access_uow = vpn_access_uow
-        self._provisioning_gateway = provisioning_gateway
-
-    async def execute(self, telegram_id: int, *, actor_telegram_id: int) -> AdminUserDetail | None:
-        async with self._users_uow:
-            user = await self._users_uow.users.get_by_telegram_id(telegram_id)
-
-        if user is None:
-            return None
-
-        async with self._vpn_access_uow:
-            access = await self._vpn_access_uow.vpn_accesses.get_by_user_id(user.id)
-
-        if access is None:
-            return AdminUserDetail(user=user, vpn_access=None, history=())
-
-        provisioned = await self._provisioning_gateway.disable_vless_access(
-            access.external_username
+        access_id: UUID,
+        *,
+        actor_telegram_id: int,
+        extra_event_details: dict[str, str] | None = None,
+    ) -> AdminUserDetail | None:
+        return await enable_admin_access(
+            users_uow=self._users_uow,
+            vpn_access_uow=self._vpn_access_uow,
+            provisioning_gateway=self._provisioning_gateway,
+            access_id=access_id,
+            actor_telegram_id=actor_telegram_id,
+            extra_event_details=extra_event_details,
         )
-        async with self._vpn_access_uow:
-            access = await self._vpn_access_uow.vpn_accesses.update(
-                access.id,
-                UpdateVpnAccessData(
-                    status=provisioned.status,
-                    subscription_url=provisioned.subscription_url,
-                    vless_links=provisioned.vless_links,
-                    issued_at=provisioned.issued_at,
-                    expires_at=provisioned.expires_at,
-                ),
-            )
-            await self._vpn_access_uow.vpn_access_events.create(
-                NewVpnAccessEventData(
-                    user_id=user.id,
-                    access_id=access.id,
-                    event_type="disabled_by_admin",
-                    actor_telegram_id=actor_telegram_id,
-                    details={},
-                )
-            )
-            history = await self._vpn_access_uow.vpn_access_events.list_by_user_id(user.id, 10)
-            await self._vpn_access_uow.commit()
 
-        return AdminUserDetail(user=user, vpn_access=access, history=history)
-
-
-class ReissueAdminVpnAccessUseCase:
-    def __init__(
+    async def disable_access(
         self,
-        users_uow: UsersUnitOfWork,
-        vpn_access_uow: VpnAccessUnitOfWork,
-        provisioning_gateway: VpnProvisioningGateway,
-    ) -> None:
-        self._users_uow = users_uow
-        self._vpn_access_uow = vpn_access_uow
-        self._provisioning_gateway = provisioning_gateway
-
-    async def execute(self, telegram_id: int, *, actor_telegram_id: int) -> AdminUserDetail | None:
-        async with self._users_uow:
-            user = await self._users_uow.users.get_by_telegram_id(telegram_id)
-
-        if user is None:
-            return None
-
-        async with self._vpn_access_uow:
-            access = await self._vpn_access_uow.vpn_accesses.get_by_user_id(user.id)
-
-        if access is None:
-            return AdminUserDetail(user=user, vpn_access=None, history=())
-
-        provisioned = await self._provisioning_gateway.reissue_vless_access(
-            access.external_username
+        access_id: UUID,
+        *,
+        actor_telegram_id: int,
+        extra_event_details: dict[str, str] | None = None,
+    ) -> AdminUserDetail | None:
+        return await disable_admin_access(
+            users_uow=self._users_uow,
+            vpn_access_uow=self._vpn_access_uow,
+            provisioning_gateway=self._provisioning_gateway,
+            access_id=access_id,
+            actor_telegram_id=actor_telegram_id,
+            extra_event_details=extra_event_details,
         )
-        async with self._vpn_access_uow:
-            access = await self._vpn_access_uow.vpn_accesses.update(
-                access.id,
-                UpdateVpnAccessData(
-                    status=provisioned.status,
-                    subscription_url=provisioned.subscription_url,
-                    vless_links=provisioned.vless_links,
-                    issued_at=provisioned.issued_at,
-                    expires_at=provisioned.expires_at,
-                ),
-            )
-            await self._vpn_access_uow.vpn_access_events.create(
-                NewVpnAccessEventData(
-                    user_id=user.id,
-                    access_id=access.id,
-                    event_type="reissued_by_admin",
-                    actor_telegram_id=actor_telegram_id,
-                    details={},
-                )
-            )
-            history = await self._vpn_access_uow.vpn_access_events.list_by_user_id(user.id, 10)
-            await self._vpn_access_uow.commit()
 
-        return AdminUserDetail(user=user, vpn_access=access, history=history)
+    async def reissue_access(
+        self,
+        access_id: UUID,
+        *,
+        actor_telegram_id: int,
+        extra_event_details: dict[str, str] | None = None,
+    ) -> AdminUserDetail | None:
+        return await reissue_admin_access(
+            users_uow=self._users_uow,
+            vpn_access_uow=self._vpn_access_uow,
+            provisioning_gateway=self._provisioning_gateway,
+            access_id=access_id,
+            actor_telegram_id=actor_telegram_id,
+            extra_event_details=extra_event_details,
+        )
+
+    async def delete_access(
+        self,
+        access_id: UUID,
+        *,
+        actor_telegram_id: int,
+        extra_event_details: dict[str, str] | None = None,
+    ) -> AdminUserDetail | None:
+        return await delete_admin_access(
+            users_uow=self._users_uow,
+            vpn_access_uow=self._vpn_access_uow,
+            provisioning_gateway=self._provisioning_gateway,
+            access_id=access_id,
+            actor_telegram_id=actor_telegram_id,
+            extra_event_details=extra_event_details,
+        )
